@@ -1,0 +1,35 @@
+syntax = "proto3";
+package profile;
+
+service ProfileService {
+  rpc GetProfile (GetProfileRequest) returns (GetProfileResponse);
+  rpc GetProfiles (GetProfilesRequest) returns (GetProfilesResponse);
+}
+
+message GetProfileRequest {
+  string user_id = 1;
+}
+
+message ProfileData {
+  string user_id = 1;
+  string display_name = 2;
+  string bio = 3;
+  string city = 4;
+  string country = 5;
+  string gender = 6;
+  string birth_date = 7;
+  repeated string interests = 8;
+  repeated string photo_urls = 9;
+}
+
+message GetProfileResponse {
+  ProfileData profile = 1;
+}
+
+message GetProfilesRequest {
+  repeated string user_ids = 1;
+}
+
+message GetProfilesResponse {
+  repeated ProfileData profiles = 1;
+}

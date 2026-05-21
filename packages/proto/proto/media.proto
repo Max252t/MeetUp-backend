@@ -1,0 +1,18 @@
+syntax = "proto3";
+package media;
+
+service MediaService {
+  rpc GetPresignedUrl (GetPresignedUrlRequest) returns (GetPresignedUrlResponse);
+}
+
+message GetPresignedUrlRequest {
+  string user_id = 1;
+  string mime_type = 2;
+  int64 size_bytes = 3;
+}
+
+message GetPresignedUrlResponse {
+  string upload_url = 1;
+  string media_id = 2;
+  int32 expires_in = 3;
+}
