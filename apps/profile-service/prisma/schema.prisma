@@ -1,0 +1,29 @@
+generator client {
+  provider        = "prisma-client-js"
+  previewFeatures = ["postgresqlExtensions"]
+}
+
+datasource db {
+  provider   = "postgresql"
+  url        = env("DATABASE_URL")
+  extensions = [pgvector(map: "vector")]
+}
+
+model Profile {
+  id          String   @id
+  displayName String
+  bio         String?
+  city        String?
+  country     String?
+  gender      String?
+  birthDate   DateTime?
+  interests   String[]
+  photoUrls   String[]
+  embedding   Unsupported("vector(384)")?
+  isActive    Boolean  @default(true)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@index([city])
+  @@index([country])
+}
