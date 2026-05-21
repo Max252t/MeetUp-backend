@@ -1,0 +1,161 @@
+version: '3.9'
+
+services:
+  postgres-auth:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_DB: auth_db
+      POSTGRES_USER: meetup
+      POSTGRES_PASSWORD: meetup_dev_password
+    ports:
+      - '5432:5432'
+    volumes:
+      - postgres_auth_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ['CMD-SHELL', 'pg_isready -U meetup -d auth_db']
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  postgres-profile:
+    image: pgvector/pgvector:pg16
+    environment:
+      POSTGRES_DB: profile_db
+      POSTGRES_USER: meetup
+      POSTGRES_PASSWORD: meetup_dev_password
+    ports:
+      - '5433:5432'
+    volumes:
+      - postgres_profile_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ['CMD-SHELL', 'pg_isready -U meetup -d profile_db']
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  postgres-chat:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_DB: chat_db
+      POSTGRES_USER: meetup
+      POSTGRES_PASSWORD: meetup_dev_password
+    ports:
+      - '5434:5432'
+    volumes:
+      - postgres_chat_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ['CMD-SHELL', 'pg_isready -U meetup -d chat_db']
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  postgres-media:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_DB: media_db
+      POSTGRES_USER: meetup
+      POSTGRES_PASSWORD: meetup_dev_password
+    ports:
+      - '5435:5432'
+    volumes:
+      - postgres_media_data:/var/lib/postgresql/data
+
+  postgres-notifications:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_DB: notifications_db
+      POSTGRES_USER: meetup
+      POSTGRES_PASSWORD: meetup_dev_password
+    ports:
+      - '5436:5432'
+    volumes:
+      - postgres_notifications_data:/var/lib/postgresql/data
+
+  redis:
+    image: redis:7-alpine
+    command: redis-server --appendonly yes --maxmemory 256mb --maxmemory-policy allkeys-lru
+    ports:
+      - '6379:6379'
+    volumes:
+      - redis_data:/data
+    healthcheck:
+      test: ['CMD', 'redis-cli', 'ping']
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  nats:
+    image: nats:2.10-alpine
+    command: ['-js', '-m', '8222', '-sd', '/data']
+    ports:
+      - '4222:4222'
+      - '8222:8222'
+    volumes:
+      - nats_data:/data
+    healthcheck:
+      test: ['CMD', 'wget', '--quiet', '--tries=1', '--spider', 'http://localhost:8222/healthz']
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  opensearch:
+    image: opensearchproject/opensearch:2.17.0
+    environment:
+      - discovery.type=single-node
+      - OPENSEARCH_JAVA_OPTS=-Xms512m -Xmx512m
+      - plugins.security.disabled=true
+    ports:
+      - '9200:9200'
+    volumes:
+      - opensearch_data:/usr/share/opensearch/data
+    healthcheck:
+      test: ['CMD-SHELL', 'curl -sf http://localhost:9200/_cluster/health || exit 1']
+      interval: 30s
+      timeout: 10s
+      retries: 5
+
+  minio:
+    image: minio/minio:RELEASE.2024-11-07T00-52-20Z
+    command: server /data --console-address ':9001'
+    environment:
+      MINIO_ROOT_USER: meetup_minio
+      MINIO_ROOT_PASSWORD: meetup_minio_secret
+    ports:
+      - '9000:9000'
+      - '9001:9001'
+    volumes:
+      - minio_data:/data
+    healthcheck:
+      test: ['CMD', 'curl', '-f', 'http://localhost:9000/minio/health/live']
+      interval: 30s
+      timeout: 20s
+      retries: 5
+
+  jaeger:
+    image: jaegertracing/all-in-one:1.62
+    environment:
+      COLLECTOR_OTLP_ENABLED: 'true'
+    ports:
+      - '16686:16686'
+      - '4317:4317'
+      - '4318:4318'
+
+  prometheus:
+    image: prom/prometheus:v3.0.0
+    ports:
+      - '9090:9090'
+    volumes:
+      - ./prometheus.yml:/etc/prometheus/prometheus.yml:ro
+      - prometheus_data:/prometheus
+
+volumes:
+  postgres_auth_data:
+  postgres_profile_data:
+  postgres_chat_data:
+  postgres_media_data:
+  postgres_notifications_data:
+  redis_data:
+  nats_data:
+  opensearch_data:
+  minio_data:
+  prometheus_data:
