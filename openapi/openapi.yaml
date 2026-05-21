@@ -1,0 +1,1136 @@
+openapi: 3.1.0
+info:
+  title: MeetUp API
+  version: 1.0.0
+  description: |
+    REST API для Android-приложения MeetUp.
+    Все запросы проходят через API Gateway (единственный публичный endpoint).
+
+    ## Аутентификация
+    После логина передавайте `accessToken` в заголовке:
+    ```
+    Authorization: Bearer <accessToken>
+    ```
+    Access-token живёт **15 минут**. Refresh-token — **30 дней**.
+    Используйте `POST /v1/auth/refresh` для обновления без повторного логина.
+
+servers:
+  - url: https://api.meetup.app
+    description: Production
+  - url: http://10.0.2.2:3000
+    description: Local dev (Android Emulator → host)
+  - url: http://localhost:3000
+    description: Local dev (прямой доступ)
+
+security:
+  - bearerAuth: []
+
+tags:
+  - name: Auth
+    description: Регистрация, вход, токены
+  - name: Profile
+    description: Профили пользователей
+  - name: Chat
+    description: Переписка (REST). Realtime — Socket.IO
+  - name: Search
+    description: Поиск профилей
+  - name: Recommendations
+    description: Лента рекомендаций
+  - name: Media
+    description: Загрузка фото и видео
+  - name: Notifications
+    description: Push-уведомления (FCM)
+  - name: System
+    description: Health, JWKS
+
+# ─────────────────────────────────────────────
+# PATHS
+# ─────────────────────────────────────────────
+paths:
+
+  # ── AUTH ──────────────────────────────────
+  /v1/auth/register:
+    post:
+      tags: [Auth]
+      operationId: register
+      summary: Регистрация — шаг 1
+      description: |
+        Создаёт аккаунт и отправляет 6-значный OTP на email.
+        После успеха вызовите `POST /v1/auth/verify-otp`.
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/RegisterRequest'
+            example:
+              email: "ivan@example.com"
+              password: "S3cret!123"
+              displayName: "Иван"
+              phone: "+79001234567"
+      responses:
+        '201':
+          description: OTP отправлен
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/RegisterResponse'
+        '409':
+          $ref: '#/components/responses/Conflict'
+        '422':
+          $ref: '#/components/responses/ValidationError'
+
+  /v1/auth/verify-otp:
+    post:
+      tags: [Auth]
+      operationId: verifyOtp
+      summary: Регистрация — шаг 2 (подтверждение OTP)
+      description: |
+        Подтверждает email и активирует аккаунт.
+        Возвращает пару токенов — сохраните оба в защищённое хранилище.
+        OTP действует **10 минут**, не более **5 попыток**.
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/VerifyOtpRequest'
+            example:
+              email: "ivan@example.com"
+              code: "482910"
+      responses:
+        '201':
+          description: Аккаунт активирован
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TokenPair'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+
+  /v1/auth/login:
+    post:
+      tags: [Auth]
+      operationId: login
+      summary: Вход
+      description: |
+        Возвращает новую пару токенов.
+        При 5 неудачных попытках включается exponential backoff.
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/LoginRequest'
+            example:
+              email: "ivan@example.com"
+              password: "S3cret!123"
+      responses:
+        '200':
+          description: Успешный вход
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TokenPair'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '429':
+          $ref: '#/components/responses/TooManyRequests'
+
+  /v1/auth/refresh:
+    post:
+      tags: [Auth]
+      operationId: refreshToken
+      summary: Обновить access-token
+      description: |
+        Rotating refresh tokens — старый токен инвалидируется, выдаётся новый.
+        При обнаружении повторного использования (token reuse) вся семья токенов
+        немедленно инвалидируется — пользователю придётся войти заново.
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/RefreshRequest'
+      responses:
+        '200':
+          description: Новая пара токенов
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TokenPair'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+
+  /v1/auth/logout:
+    post:
+      tags: [Auth]
+      operationId: logout
+      summary: Выход
+      description: Инвалидирует refresh-токен и сессию в Redis.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/LogoutRequest'
+      responses:
+        '204':
+          description: Выход выполнен
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+
+  /v1/auth/account:
+    delete:
+      tags: [Auth]
+      operationId: deleteAccount
+      summary: Удалить аккаунт (GDPR)
+      description: |
+        Soft-delete аккаунта. Публикует событие `user.deleted` — каждый сервис
+        самостоятельно удаляет свои данные пользователя (Saga).
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [userId]
+              properties:
+                userId:
+                  type: string
+                  format: uuid
+      responses:
+        '204':
+          description: Аккаунт удалён
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+
+  # ── PROFILE ───────────────────────────────
+  /v1/profiles/me:
+    put:
+      tags: [Profile]
+      operationId: upsertProfile
+      summary: Создать или обновить свой профиль
+      description: |
+        Идемпотентный upsert. Первый вызов создаёт профиль, последующие — обновляют.
+        При изменении `interests` публикуется событие `interests.changed`.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UpsertProfileRequest'
+            example:
+              displayName: "Иван"
+              bio: "Люблю горы и кофе"
+              city: "Москва"
+              country: "RU"
+              gender: "male"
+              birthDate: "1995-07-15"
+              interests: ["hiking", "coffee", "photography"]
+      responses:
+        '200':
+          description: Профиль сохранён
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Profile'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '422':
+          $ref: '#/components/responses/ValidationError'
+
+    get:
+      tags: [Profile]
+      operationId: getMyProfile
+      summary: Получить свой профиль
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Profile'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          $ref: '#/components/responses/NotFound'
+
+    delete:
+      tags: [Profile]
+      operationId: deactivateProfile
+      summary: Деактивировать профиль
+      description: Вызывается автоматически при удалении аккаунта.
+      responses:
+        '204':
+          description: Профиль деактивирован
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+
+  /v1/profiles/{userId}:
+    get:
+      tags: [Profile]
+      operationId: getProfile
+      summary: Получить профиль пользователя
+      parameters:
+        - name: userId
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Profile'
+        '404':
+          $ref: '#/components/responses/NotFound'
+
+  # ── CHAT ──────────────────────────────────
+  /v1/chat/conversations:
+    get:
+      tags: [Chat]
+      operationId: getConversations
+      summary: Список диалогов
+      description: Возвращает все диалоги текущего пользователя, сортировка по дате создания (desc).
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/Conversation'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+
+    post:
+      tags: [Chat]
+      operationId: startConversation
+      summary: Начать диалог
+      description: Идемпотентен — возвращает существующий диалог, если уже есть.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/StartConversationRequest'
+      responses:
+        '201':
+          description: Диалог создан или найден
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Conversation'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+
+  /v1/chat/conversations/{conversationId}/messages:
+    get:
+      tags: [Chat]
+      operationId: getMessages
+      summary: История сообщений
+      description: |
+        Cursor-based пагинация (от новых к старым).
+        Для загрузки следующей страницы передайте `cursor` из предыдущего ответа.
+      parameters:
+        - name: conversationId
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+        - name: cursor
+          in: query
+          description: ISO 8601 timestamp последнего полученного сообщения
+          schema:
+            type: string
+            format: date-time
+            example: "2024-11-01T12:00:00.000Z"
+        - name: limit
+          in: query
+          description: Количество сообщений (макс. 100)
+          schema:
+            type: integer
+            default: 50
+            minimum: 1
+            maximum: 100
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/MessagePage'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          $ref: '#/components/responses/NotFound'
+
+  # ── SEARCH ────────────────────────────────
+  /v1/search/profiles:
+    get:
+      tags: [Search]
+      operationId: searchProfiles
+      summary: Поиск профилей
+      description: |
+        Возвращает массив `userId`. Дополнительные данные профилей запрашивайте
+        через `GET /v1/profiles/{userId}`.
+      parameters:
+        - name: q
+          in: query
+          description: Текстовый запрос (поиск по имени, биографии, городу)
+          schema:
+            type: string
+            example: "Москва"
+        - name: gender
+          in: query
+          schema:
+            type: string
+            enum: [male, female, other]
+        - name: minAge
+          in: query
+          schema:
+            type: integer
+            minimum: 18
+            maximum: 100
+            example: 22
+        - name: maxAge
+          in: query
+          schema:
+            type: integer
+            minimum: 18
+            maximum: 100
+            example: 35
+        - name: city
+          in: query
+          schema:
+            type: string
+            example: "Москва"
+        - name: country
+          in: query
+          schema:
+            type: string
+            example: "RU"
+        - name: interests
+          in: query
+          description: Один или несколько тегов (повторяющийся параметр)
+          schema:
+            type: array
+            items:
+              type: string
+          style: form
+          explode: true
+          example: ["hiking", "coffee"]
+        - name: from
+          in: query
+          description: Смещение для пагинации
+          schema:
+            type: integer
+            default: 0
+            minimum: 0
+        - name: size
+          in: query
+          description: Размер страницы
+          schema:
+            type: integer
+            default: 20
+            minimum: 1
+            maximum: 100
+      responses:
+        '200':
+          description: Массив userId
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  type: string
+                  format: uuid
+                example: ["a1b2c3d4-...", "e5f6g7h8-..."]
+
+  # ── RECOMMENDATIONS ───────────────────────
+  /v1/recommendations:
+    get:
+      tags: [Recommendations]
+      operationId: getRecommendations
+      summary: Лента рекомендаций
+      description: |
+        Возвращает до 100 userId из Redis-кэша (TTL 24 ч).
+        Если кэш пуст — ставит задачу на пересчёт и возвращает `[]`.
+        Дополнительные данные профилей запрашивайте через `GET /v1/profiles/{userId}`.
+      responses:
+        '200':
+          description: Массив userId
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  type: string
+                  format: uuid
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+
+  /v1/recommendations/refresh:
+    post:
+      tags: [Recommendations]
+      operationId: refreshRecommendations
+      summary: Запросить пересчёт ленты
+      description: Ставит задачу в очередь BullMQ. Пересчёт асинхронный — результат появится в следующем запросе.
+      responses:
+        '201':
+          description: Задача поставлена
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+
+  # ── MEDIA ─────────────────────────────────
+  /v1/media/upload-url:
+    post:
+      tags: [Media]
+      operationId: requestUploadUrl
+      summary: Получить presigned URL для загрузки
+      description: |
+        **Сценарий загрузки фото:**
+        1. Вызвать этот endpoint → получить `uploadUrl` и `mediaId`
+        2. Загрузить файл напрямую в S3/MinIO через `PUT uploadUrl`
+           (без Authorization-заголовка, только `Content-Type`)
+        3. Вызвать `POST /v1/media/{mediaId}/confirm`
+
+        URL действует `expiresIn` секунд (по умолчанию 900 с = 15 мин).
+        Допустимые форматы: `image/jpeg`, `image/png`, `image/webp`, `video/mp4`.
+        Максимальный размер: 10 МБ.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/RequestUploadUrlRequest'
+            example:
+              mimeType: "image/jpeg"
+              sizeBytes: 2048576
+      responses:
+        '201':
+          description: Presigned URL готов
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/UploadUrlResponse'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+
+  /v1/media/{mediaId}/confirm:
+    post:
+      tags: [Media]
+      operationId: confirmUpload
+      summary: Подтвердить загрузку
+      description: Вызвать после успешного PUT в S3. Меняет статус на `active` и публикует событие `media.uploaded`.
+      parameters:
+        - name: mediaId
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '201':
+          description: Загрузка подтверждена
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/MediaObject'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+
+  /v1/media/my:
+    get:
+      tags: [Media]
+      operationId: getMyMedia
+      summary: Список загруженных файлов
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/MediaObject'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+
+  /v1/media/{mediaId}:
+    delete:
+      tags: [Media]
+      operationId: deleteMedia
+      summary: Удалить файл
+      parameters:
+        - name: mediaId
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '204':
+          description: Удалён
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+
+  # ── NOTIFICATIONS ─────────────────────────
+  /v1/notifications/device-token:
+    post:
+      tags: [Notifications]
+      operationId: registerDeviceToken
+      summary: Зарегистрировать FCM-токен
+      description: Вызывайте при каждом запуске приложения, если `FirebaseMessaging.getToken()` вернул новый токен.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/RegisterDeviceTokenRequest'
+            example:
+              token: "fX3kLm...FCM_TOKEN"
+              platform: "android"
+      responses:
+        '201':
+          description: Токен сохранён
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/DeviceToken'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+
+    delete:
+      tags: [Notifications]
+      operationId: removeDeviceToken
+      summary: Удалить FCM-токен (при выходе)
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/RemoveDeviceTokenRequest'
+      responses:
+        '204':
+          description: Токен удалён
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+
+  # ── SYSTEM ────────────────────────────────
+  /health:
+    get:
+      tags: [System]
+      operationId: healthCheck
+      summary: Liveness probe
+      security: []
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HealthResponse'
+
+  /.well-known/jwks.json:
+    get:
+      tags: [System]
+      operationId: getJwks
+      summary: JWKS endpoint
+      security: []
+      responses:
+        '200':
+          description: Публичные ключи (RS256)
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/JwksResponse'
+
+# ─────────────────────────────────────────────
+# COMPONENTS
+# ─────────────────────────────────────────────
+components:
+
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+      description: |
+        JWT (RS256), выданный auth-service.
+        Срок жизни: 15 минут. Обновляйте через `POST /v1/auth/refresh`.
+
+  # ── SCHEMAS ───────────────────────────────
+  schemas:
+
+    # Auth
+    RegisterRequest:
+      type: object
+      required: [email, password, displayName]
+      properties:
+        email:
+          type: string
+          format: email
+          example: "ivan@example.com"
+        password:
+          type: string
+          minLength: 8
+          maxLength: 128
+          example: "S3cret!123"
+        displayName:
+          type: string
+          minLength: 2
+          maxLength: 50
+          example: "Иван"
+        phone:
+          type: string
+          pattern: '^\+?[1-9]\d{7,14}$'
+          example: "+79001234567"
+
+    RegisterResponse:
+      type: object
+      properties:
+        userId:
+          type: string
+          format: uuid
+        message:
+          type: string
+          example: "OTP sent"
+
+    VerifyOtpRequest:
+      type: object
+      required: [email, code]
+      properties:
+        email:
+          type: string
+          format: email
+        code:
+          type: string
+          minLength: 6
+          maxLength: 6
+          example: "482910"
+
+    LoginRequest:
+      type: object
+      required: [email, password]
+      properties:
+        email:
+          type: string
+          format: email
+        password:
+          type: string
+          minLength: 1
+
+    RefreshRequest:
+      type: object
+      required: [refreshToken]
+      properties:
+        refreshToken:
+          type: string
+
+    LogoutRequest:
+      type: object
+      required: [userId, refreshToken]
+      properties:
+        userId:
+          type: string
+          format: uuid
+        refreshToken:
+          type: string
+
+    TokenPair:
+      type: object
+      required: [accessToken, refreshToken, expiresIn]
+      properties:
+        accessToken:
+          type: string
+          description: JWT RS256, TTL 15 мин
+        refreshToken:
+          type: string
+          description: UUID v4, TTL 30 дней
+        expiresIn:
+          type: integer
+          description: Секунды до истечения access-token
+          example: 900
+
+    # Profile
+    UpsertProfileRequest:
+      type: object
+      required: [displayName]
+      properties:
+        displayName:
+          type: string
+          minLength: 2
+          maxLength: 50
+        bio:
+          type: string
+          maxLength: 500
+        city:
+          type: string
+        country:
+          type: string
+          description: ISO 3166-1 alpha-2
+          example: "RU"
+        gender:
+          type: string
+          enum: [male, female, other]
+        birthDate:
+          type: string
+          format: date
+          example: "1995-07-15"
+        interests:
+          type: array
+          items:
+            type: string
+          example: ["hiking", "coffee"]
+
+    Profile:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+          description: Совпадает с userId из JWT
+        displayName:
+          type: string
+        bio:
+          type: string
+          nullable: true
+        city:
+          type: string
+          nullable: true
+        country:
+          type: string
+          nullable: true
+        gender:
+          type: string
+          nullable: true
+          enum: [male, female, other]
+        birthDate:
+          type: string
+          format: date-time
+          nullable: true
+        interests:
+          type: array
+          items:
+            type: string
+        photoUrls:
+          type: array
+          items:
+            type: string
+            format: uri
+        isActive:
+          type: boolean
+        createdAt:
+          type: string
+          format: date-time
+        updatedAt:
+          type: string
+          format: date-time
+
+    # Chat
+    Conversation:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        participants:
+          type: array
+          items:
+            type: string
+            format: uuid
+          minItems: 2
+          maxItems: 2
+        createdAt:
+          type: string
+          format: date-time
+
+    StartConversationRequest:
+      type: object
+      required: [targetUserId]
+      properties:
+        targetUserId:
+          type: string
+          format: uuid
+
+    Message:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        conversationId:
+          type: string
+          format: uuid
+        senderId:
+          type: string
+          format: uuid
+        content:
+          type: string
+          description: Текст или зашифрованный ciphertext (base64) при isEncrypted=true
+        isEncrypted:
+          type: boolean
+          default: false
+        createdAt:
+          type: string
+          format: date-time
+
+    MessagePage:
+      type: object
+      properties:
+        items:
+          type: array
+          items:
+            $ref: '#/components/schemas/Message'
+          description: Сообщения отсортированы от новых к старым
+        nextCursor:
+          type: string
+          format: date-time
+          nullable: true
+          description: Передайте в следующий запрос как `cursor`
+        hasMore:
+          type: boolean
+
+    # Media
+    RequestUploadUrlRequest:
+      type: object
+      required: [mimeType, sizeBytes]
+      properties:
+        mimeType:
+          type: string
+          enum: [image/jpeg, image/png, image/webp, video/mp4]
+        sizeBytes:
+          type: integer
+          minimum: 1
+          maximum: 10485760
+          description: Размер файла в байтах (макс. 10 МБ)
+
+    UploadUrlResponse:
+      type: object
+      properties:
+        mediaId:
+          type: string
+          format: uuid
+        uploadUrl:
+          type: string
+          format: uri
+          description: Presigned S3 PUT URL
+        expiresIn:
+          type: integer
+          description: Секунды до истечения URL
+          example: 900
+
+    MediaObject:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        userId:
+          type: string
+          format: uuid
+        bucket:
+          type: string
+        key:
+          type: string
+        mimeType:
+          type: string
+        sizeBytes:
+          type: integer
+          format: int64
+        status:
+          type: string
+          enum: [pending, active, deleted]
+        url:
+          type: string
+          format: uri
+          nullable: true
+        uploadedAt:
+          type: string
+          format: date-time
+          nullable: true
+        createdAt:
+          type: string
+          format: date-time
+        updatedAt:
+          type: string
+          format: date-time
+
+    # Notifications
+    RegisterDeviceTokenRequest:
+      type: object
+      required: [token, platform]
+      properties:
+        token:
+          type: string
+          description: FCM registration token
+        platform:
+          type: string
+          enum: [android, ios]
+
+    RemoveDeviceTokenRequest:
+      type: object
+      required: [token]
+      properties:
+        token:
+          type: string
+
+    DeviceToken:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        userId:
+          type: string
+          format: uuid
+        token:
+          type: string
+        platform:
+          type: string
+        createdAt:
+          type: string
+          format: date-time
+        updatedAt:
+          type: string
+          format: date-time
+
+    # System
+    HealthResponse:
+      type: object
+      properties:
+        status:
+          type: string
+          example: ok
+        timestamp:
+          type: string
+          format: date-time
+
+    JwksResponse:
+      type: object
+      properties:
+        keys:
+          type: array
+          items:
+            type: object
+            properties:
+              kty:
+                type: string
+                example: RSA
+              use:
+                type: string
+                example: sig
+              alg:
+                type: string
+                example: RS256
+              kid:
+                type: string
+              x5c:
+                type: array
+                items:
+                  type: string
+
+    # Errors
+    ErrorResponse:
+      type: object
+      properties:
+        statusCode:
+          type: integer
+        message:
+          oneOf:
+            - type: string
+            - type: array
+              items:
+                type: string
+        path:
+          type: string
+        timestamp:
+          type: string
+          format: date-time
+
+  # ── RESPONSES ─────────────────────────────
+  responses:
+    BadRequest:
+      description: Некорректный запрос
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'
+          example:
+            statusCode: 400
+            message: "Invalid or expired OTP"
+            timestamp: "2024-11-01T12:00:00.000Z"
+
+    Unauthorized:
+      description: Требуется аутентификация или токен недействителен
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'
+          example:
+            statusCode: 401
+            message: "Unauthorized"
+            timestamp: "2024-11-01T12:00:00.000Z"
+
+    NotFound:
+      description: Ресурс не найден
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'
+          example:
+            statusCode: 404
+            message: "Profile not found"
+            timestamp: "2024-11-01T12:00:00.000Z"
+
+    Conflict:
+      description: Конфликт (например, email уже зарегистрирован)
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'
+          example:
+            statusCode: 409
+            message: "Email already registered"
+            timestamp: "2024-11-01T12:00:00.000Z"
+
+    ValidationError:
+      description: Ошибка валидации тела запроса
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'
+          example:
+            statusCode: 422
+            message: ["email must be an email", "password must be longer than or equal to 8 characters"]
+            timestamp: "2024-11-01T12:00:00.000Z"
+
+    TooManyRequests:
+      description: Превышен rate-limit
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'
+          example:
+            statusCode: 429
+            message: "Too Many Requests"
+            timestamp: "2024-11-01T12:00:00.000Z"
