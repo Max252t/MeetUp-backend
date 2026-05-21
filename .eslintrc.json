@@ -1,0 +1,26 @@
+{
+  "root": true,
+  "extends": [
+    "eslint:recommended",
+    "plugin:@typescript-eslint/recommended",
+    "prettier"
+  ],
+  "parser": "@typescript-eslint/parser",
+  "plugins": ["@typescript-eslint"],
+  "rules": {
+    "@typescript-eslint/no-explicit-any": "warn",
+    "@typescript-eslint/explicit-function-return-type": "off",
+    "@typescript-eslint/no-unused-vars": ["warn", { "argsIgnorePattern": "^_" }],
+    "no-restricted-syntax": [
+      "error",
+      {
+        "selector": "CallExpression[callee.property.name='$queryRaw']:not([arguments.0.type='TaggedTemplateExpression'])",
+        "message": "Use Prisma.sql tagged template for $queryRaw to prevent SQL injection"
+      }
+    ]
+  },
+  "env": {
+    "node": true,
+    "es2022": true
+  }
+}
