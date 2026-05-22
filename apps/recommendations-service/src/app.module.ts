@@ -14,7 +14,7 @@ import { validateRecsEnv, RecsEnv } from './config/recs.config';
     BullModule.forRootAsync({
       inject: [ConfigService],
       useFactory: (config: ConfigService<RecsEnv>) => ({
-        redis: config.get('REDIS_URL', { infer: true })!,
+        redis: config.get<string>('REDIS_URL')!,
       }),
     }),
     RedisModule,

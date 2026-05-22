@@ -1,5 +1,5 @@
 import { Inject, Injectable, OnModuleInit } from '@nestjs/common';
-import { NatsConnection, StringCodec } from 'nats';
+import { NatsConnection, StringCodec, consumerOpts } from 'nats';
 import { NATS_CLIENT } from '../nats/nats.module';
 import { NATS_SUBJECTS } from '@meetup/shared-config';
 import { ProfileUpdatedEvent, UserDeletedEvent } from '@meetup/events';
@@ -23,7 +23,7 @@ export class SearchListener implements OnModuleInit {
       await jsm.streams.add({ name: subject.replace(/\./g, '_'), subjects: [subject] }).catch(() => {});
     }
 
-    const profileSub = await js.subscribe(NATS_SUBJECTS.PROFILE_UPDATED);
+    const profileSub = await js.subscribe(NATS_SUBJECTS.PROFILE_UPDATED, consumerOpts());
     (async () => {
       for await (const msg of profileSub) {
         try {
@@ -47,7 +47,7 @@ export class SearchListener implements OnModuleInit {
       }
     })();
 
-    const deleteSub = await js.subscribe(NATS_SUBJECTS.USER_DELETED);
+    const deleteSub = await js.subscribe(NATS_SUBJECTS.USER_DELETED, consumerOpts());
     (async () => {
       for await (const msg of deleteSub) {
         try {

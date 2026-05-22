@@ -1,5 +1,5 @@
 import { Injectable, OnModuleInit, OnModuleDestroy } from '@nestjs/common';
-import { PrismaClient } from '@prisma/client';
+import { PrismaClient, Prisma } from '@prisma/client';
 import { ConfigService } from '@nestjs/config';
 import { AuthEnv } from '../../config/auth.config';
 import { encryptPiiFields, decryptPiiFields, getPiiIndex } from '@meetup/db-kit';
@@ -12,8 +12,8 @@ export class AuthRepository extends PrismaClient implements OnModuleInit, OnModu
   constructor(private readonly config: ConfigService<AuthEnv>) {
     super();
     this.piiConfig = {
-      encryptionKey: Buffer.from(config.get('PII_ENCRYPTION_KEY', { infer: true })!, 'hex'),
-      hmacKey: Buffer.from(config.get('PII_HMAC_KEY', { infer: true })!, 'hex'),
+      encryptionKey: Buffer.from(config.get<string>('PII_ENCRYPTION_KEY')!, 'hex'),
+      hmacKey: Buffer.from(config.get<string>('PII_HMAC_KEY')!, 'hex'),
       fields: ['email', 'phone'],
     };
   }
@@ -112,7 +112,7 @@ export class AuthRepository extends PrismaClient implements OnModuleInit, OnModu
     event: string;
     ipAddress?: string;
     userAgent?: string;
-    metadata?: Record<string, unknown>;
+    metadata?: Prisma.InputJsonObject;
   }) {
     return this.auditLog.create({ data });
   }
