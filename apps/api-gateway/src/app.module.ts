@@ -16,8 +16,8 @@ import { validateGatewayEnv, GatewayEnv } from './config/gateway.config';
       inject: [ConfigService],
       useFactory: (config: ConfigService<GatewayEnv>) => [
         {
-          ttl: config.get('RATE_LIMIT_TTL', { infer: true })!,
-          limit: config.get('RATE_LIMIT_MAX', { infer: true })!,
+          ttl: config.get<number>('RATE_LIMIT_TTL')!,
+          limit: config.get<number>('RATE_LIMIT_MAX')!,
         },
       ],
     }),

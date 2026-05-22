@@ -11,7 +11,7 @@ export const REDIS_CLIENT = 'REDIS_CLIENT';
     {
       provide: REDIS_CLIENT,
       useFactory: (config: ConfigService<AuthEnv>) => {
-        return new Redis(config.get('REDIS_URL', { infer: true })!);
+        return new Redis(config.get<string>('REDIS_URL')!);
       },
       inject: [ConfigService],
     },

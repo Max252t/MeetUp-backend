@@ -1,6 +1,6 @@
 import { CallHandler, ExecutionContext, Injectable, NestInterceptor } from '@nestjs/common';
 import { Observable } from 'rxjs';
-import { JwtUser } from '../modules/auth/jwt.strategy';
+import { JwtUser } from '../../modules/auth/jwt.strategy';
 
 @Injectable()
 export class UserIdInterceptor implements NestInterceptor {
