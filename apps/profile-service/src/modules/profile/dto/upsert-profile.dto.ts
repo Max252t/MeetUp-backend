@@ -5,7 +5,7 @@ export class UpsertProfileDto {
   @ApiProperty()
   @IsString()
   @MaxLength(50)
-  displayName: string;
+  displayName!: string;
 
   @ApiProperty({ required: false })
   @IsOptional()

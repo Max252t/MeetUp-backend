@@ -4,8 +4,8 @@ import { IsString, IsNumber, IsPositive } from 'class-validator';
 import { MediaService } from './media.service';
 
 class RequestUploadDto {
-  @IsString() mimeType: string;
-  @IsNumber() @IsPositive() sizeBytes: number;
+  @IsString() mimeType!: string;
+  @IsNumber() @IsPositive() sizeBytes!: number;
 }
 
 @ApiTags('media')

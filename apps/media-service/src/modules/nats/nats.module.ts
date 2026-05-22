@@ -12,7 +12,7 @@ export const JETSTREAM_CLIENT = 'JETSTREAM_CLIENT';
     {
       provide: NATS_CLIENT,
       useFactory: async (config: ConfigService<MediaEnv>): Promise<NatsConnection> =>
-        connect({ servers: config.get('NATS_URL', { infer: true })! }),
+        connect({ servers: config.get<string>('NATS_URL')! }),
       inject: [ConfigService],
     },
     {

@@ -12,7 +12,7 @@ export const PROFILES_INDEX = 'profiles';
     {
       provide: OPENSEARCH_CLIENT,
       useFactory: (config: ConfigService<SearchEnv>): Client =>
-        new Client({ node: config.get('OPENSEARCH_URL', { infer: true })! }),
+        new Client({ node: config.get<string>('OPENSEARCH_URL')! }),
       inject: [ConfigService],
     },
   ],
