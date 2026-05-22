@@ -690,6 +690,9 @@ importers:
       '@grpc/proto-loader':
         specifier: ^0.7.13
         version: 0.7.15
+      '@nestjs/microservices':
+        specifier: ^11.0.0
+        version: 11.1.23(@grpc/grpc-js@1.14.4)(@nestjs/common@11.1.23(class-transformer@0.5.1)(class-validator@0.14.4)(reflect-metadata@0.2.2)(rxjs@7.8.2))(@nestjs/core@11.1.23)(@nestjs/websockets@11.1.23)(ioredis@5.10.1)(nats@2.29.3)(reflect-metadata@0.2.2)(rxjs@7.8.2)
     devDependencies:
       '@types/node':
         specifier: ^20.0.0
@@ -704,6 +707,9 @@ importers:
         specifier: ^3.23.8
         version: 3.25.76
     devDependencies:
+      '@types/node':
+        specifier: ^20.0.0
+        version: 20.19.41
       typescript:
         specifier: '*'
         version: 5.9.3
