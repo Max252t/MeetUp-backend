@@ -10,7 +10,7 @@ export const NATS_CLIENT = 'NATS_CLIENT';
   providers: [{
     provide: NATS_CLIENT,
     useFactory: async (config: ConfigService<NotificationsEnv>): Promise<NatsConnection> =>
-      connect({ servers: config.get('NATS_URL', { infer: true })! }),
+      connect({ servers: config.get<string>('NATS_URL')! }),
     inject: [ConfigService],
   }],
   exports: [NATS_CLIENT],

@@ -133,7 +133,7 @@ export class AuthService {
   }
 
   private async issueTokenPair(userId: string, email: string, existingFamily?: string) {
-    const privateKey = this.config.get('JWT_PRIVATE_KEY', { infer: true })!;
+    const privateKey = this.config.get<string>('JWT_PRIVATE_KEY')!;
     const jti = uuidv4();
 
     const accessToken = signAccessToken(
@@ -158,15 +158,15 @@ export class AuthService {
 
   getPublicKey(): { publicKey: string; kid: string } {
     return {
-      publicKey: this.config.get('JWT_PUBLIC_KEY', { infer: true })!,
-      kid: this.config.get('JWT_KID', { infer: true })!,
+      publicKey: this.config.get<string>('JWT_PUBLIC_KEY')!,
+      kid: this.config.get<string>('JWT_KID')!,
     };
   }
 
   buildJwks() {
     const { publicKey, kid } = this.getPublicKey();
     const keyObj = jwt.decode(
-      jwt.sign({}, this.config.get('JWT_PRIVATE_KEY', { infer: true })!, { algorithm: 'RS256' }),
+      jwt.sign({}, this.config.get<string>('JWT_PRIVATE_KEY')!, { algorithm: 'RS256' }),
       { complete: true },
     );
     // Return PEM wrapped in minimal JWKS envelope

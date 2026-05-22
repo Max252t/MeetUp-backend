@@ -22,11 +22,11 @@ export class MediaService extends PrismaClient implements OnModuleInit, OnModule
   ) {
     super();
     this.s3 = new S3Client({
-      endpoint: config.get('S3_ENDPOINT', { infer: true })!,
-      region: config.get('S3_REGION', { infer: true })!,
+      endpoint: config.get<string>('S3_ENDPOINT')!,
+      region: config.get<string>('S3_REGION')!,
       credentials: {
-        accessKeyId: config.get('S3_ACCESS_KEY', { infer: true })!,
-        secretAccessKey: config.get('S3_SECRET_KEY', { infer: true })!,
+        accessKeyId: config.get<string>('S3_ACCESS_KEY')!,
+        secretAccessKey: config.get<string>('S3_SECRET_KEY')!,
       },
       forcePathStyle: true,
     });
@@ -39,14 +39,14 @@ export class MediaService extends PrismaClient implements OnModuleInit, OnModule
     if (!ALLOWED_MIME_TYPES.includes(mimeType)) {
       throw new BadRequestException(`MIME type ${mimeType} not allowed`);
     }
-    const maxBytes = this.config.get('MAX_FILE_SIZE_MB', { infer: true })! * 1024 * 1024;
+    const maxBytes = this.config.get<number>('MAX_FILE_SIZE_MB')! * 1024 * 1024;
     if (sizeBytes > maxBytes) throw new BadRequestException('File too large');
 
     const mediaId = uuidv4();
     const ext = mimeType.split('/')[1];
     const key = `${userId}/${mediaId}.${ext}`;
-    const bucket = this.config.get('S3_BUCKET', { infer: true })!;
-    const expiresIn = this.config.get('PRESIGNED_URL_EXPIRES', { infer: true })!;
+    const bucket = this.config.get<string>('S3_BUCKET')!;
+    const expiresIn = this.config.get<number>('PRESIGNED_URL_EXPIRES')!;
 
     const command = new PutObjectCommand({
       Bucket: bucket,
@@ -65,8 +65,8 @@ export class MediaService extends PrismaClient implements OnModuleInit, OnModule
   }
 
   async confirmUpload(mediaId: string, userId: string) {
-    const endpoint = this.config.get('S3_ENDPOINT', { infer: true })!;
-    const bucket = this.config.get('S3_BUCKET', { infer: true })!;
+    const endpoint = this.config.get<string>('S3_ENDPOINT')!;
+    const bucket = this.config.get<string>('S3_BUCKET')!;
 
     const media = await this.mediaObject.update({
       where: { id: mediaId },

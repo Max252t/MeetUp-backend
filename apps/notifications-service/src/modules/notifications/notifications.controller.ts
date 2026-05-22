@@ -4,12 +4,12 @@ import { IsIn, IsString } from 'class-validator';
 import { NotificationsService } from './notifications.service';
 
 class RegisterTokenDto {
-  @IsString() token: string;
-  @IsIn(['android', 'ios']) platform: string;
+  @IsString() token!: string;
+  @IsIn(['android', 'ios']) platform!: string;
 }
 
 class RemoveTokenDto {
-  @IsString() token: string;
+  @IsString() token!: string;
 }
 
 @ApiTags('notifications')

@@ -22,7 +22,7 @@ export class JwtStrategy extends PassportStrategy(Strategy) {
         cache: true,
         rateLimit: true,
         jwksRequestsPerMinute: 10,
-        jwksUri: config.get('JWKS_URI', { infer: true })!,
+        jwksUri: config.get<string>('JWKS_URI')!,
       }),
       algorithms: ['RS256'],
     });
