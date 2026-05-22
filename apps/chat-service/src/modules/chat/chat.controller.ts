@@ -5,7 +5,7 @@ import { buildCursorPage } from '@meetup/db-kit';
 import { IsString } from 'class-validator';
 
 class StartConversationDto {
-  @IsString() targetUserId: string;
+  @IsString() targetUserId!: string;
 }
 
 @ApiTags('chat')

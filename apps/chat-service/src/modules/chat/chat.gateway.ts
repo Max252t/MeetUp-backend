@@ -69,7 +69,7 @@ export class ChatGateway implements OnGatewayConnection, OnGatewayDisconnect {
     );
 
     const conversation = await this.repo.getConversation(data.conversationId);
-    const recipientId = conversation?.participants.find((p) => p !== senderId);
+    const recipientId = conversation?.participants.find((p: string) => p !== senderId);
 
     this.server.to(`conv:${data.conversationId}`).emit('new_message', message);
 

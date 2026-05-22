@@ -9,7 +9,7 @@ export const REDIS_CLIENT = 'REDIS_CLIENT';
 @Module({
   providers: [{
     provide: REDIS_CLIENT,
-    useFactory: (config: ConfigService<ChatEnv>) => new Redis(config.get('REDIS_URL', { infer: true })!),
+    useFactory: (config: ConfigService<ChatEnv>) => new Redis(config.get<string>('REDIS_URL')!),
     inject: [ConfigService],
   }],
   exports: [REDIS_CLIENT],
