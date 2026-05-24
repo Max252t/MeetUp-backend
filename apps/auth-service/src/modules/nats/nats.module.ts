@@ -1,4 +1,4 @@
-import { Global, Module, OnApplicationShutdown } from '@nestjs/common';
+import { Global, Inject, Module, OnApplicationShutdown } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { connect, NatsConnection, JetStreamClient } from 'nats';
 import { AuthEnv } from '../../config/auth.config';
@@ -27,7 +27,7 @@ export const JETSTREAM_CLIENT = 'JETSTREAM_CLIENT';
   exports: [NATS_CLIENT, JETSTREAM_CLIENT],
 })
 export class NatsModule implements OnApplicationShutdown {
-  constructor(private readonly nc: NatsConnection) {}
+  constructor(@Inject(NATS_CLIENT) private readonly nc: NatsConnection) {}
 
   async onApplicationShutdown() {
     await this.nc.drain();
