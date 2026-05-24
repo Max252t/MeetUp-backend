@@ -1,5 +1,5 @@
 import { Inject, Injectable, OnModuleInit, Logger } from '@nestjs/common';
-import { NatsConnection, StringCodec, consumerOpts } from 'nats';
+import { NatsConnection, StringCodec, consumerOpts, createInbox } from 'nats';
 import { NATS_CLIENT } from '../nats/nats.module';
 import { NATS_SUBJECTS } from '@meetup/shared-config';
 import { MessageSentEvent } from '@meetup/events';
@@ -23,7 +23,9 @@ export class NotificationsListener implements OnModuleInit {
       await jsm.streams.add({ name: subject.replace(/\./g, '_'), subjects: [subject] }).catch(() => {});
     }
 
-    const msgSub = await js.subscribe(NATS_SUBJECTS.MESSAGE_SENT, consumerOpts());
+    const msgOpts = consumerOpts();
+    msgOpts.deliverTo(createInbox());
+    const msgSub = await js.subscribe(NATS_SUBJECTS.MESSAGE_SENT, msgOpts);
     (async () => {
       for await (const msg of msgSub) {
         try {
