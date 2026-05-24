@@ -1,7 +1,7 @@
-import { Body, Controller, Get, Param, Put, Headers, Delete, HttpCode, HttpStatus } from '@nestjs/common';
+import { Body, Controller, Get, Param, Patch, Headers, Delete, HttpCode, HttpStatus } from '@nestjs/common';
 import { ApiOperation, ApiTags, ApiBearerAuth } from '@nestjs/swagger';
 import { ProfileService } from './profile.service';
-import { UpsertProfileDto } from './dto/upsert-profile.dto';
+import { UpdateProfileDto } from './dto/update-profile.dto';
 
 @ApiTags('profiles')
 @ApiBearerAuth()
@@ -9,13 +9,13 @@ import { UpsertProfileDto } from './dto/upsert-profile.dto';
 export class ProfileController {
   constructor(private readonly profileService: ProfileService) {}
 
-  @Put('me')
-  @ApiOperation({ summary: 'Create or update own profile' })
-  upsertProfile(
+  @Patch('me')
+  @ApiOperation({ summary: 'Update own profile (partial)' })
+  patchProfile(
     @Headers('x-user-id') userId: string,
-    @Body() dto: UpsertProfileDto,
+    @Body() dto: UpdateProfileDto,
   ) {
-    return this.profileService.upsert(userId, dto);
+    return this.profileService.patch(userId, dto);
   }
 
   @Get('me')
@@ -32,7 +32,7 @@ export class ProfileController {
 
   @Delete('me')
   @HttpCode(HttpStatus.NO_CONTENT)
-  @ApiOperation({ summary: 'Deactivate own profile (called on GDPR deletion)' })
+  @ApiOperation({ summary: 'Deactivate own profile' })
   deactivate(@Headers('x-user-id') userId: string) {
     return this.profileService.deactivate(userId);
   }

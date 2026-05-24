@@ -1,6 +1,7 @@
 import { Module } from '@nestjs/common';
 import { ConfigModule } from '@nestjs/config';
 import { ProfileModule } from './modules/profile/profile.module';
+import { InterestsModule } from './modules/interests/interests.module';
 import { NatsModule } from './modules/nats/nats.module';
 import { validateProfileEnv } from './config/profile.config';
 
@@ -9,6 +10,7 @@ import { validateProfileEnv } from './config/profile.config';
     ConfigModule.forRoot({ isGlobal: true, validate: validateProfileEnv }),
     NatsModule,
     ProfileModule,
+    InterestsModule,
   ],
 })
 export class AppModule {}

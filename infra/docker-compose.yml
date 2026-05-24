@@ -127,9 +127,22 @@ services:
       - minio_data:/data
     healthcheck:
       test: ['CMD', 'curl', '-f', 'http://localhost:9000/minio/health/live']
-      interval: 30s
-      timeout: 20s
-      retries: 5
+      interval: 10s
+      timeout: 5s
+      retries: 10
+
+  createbuckets:
+    image: minio/mc:latest
+    depends_on:
+      minio:
+        condition: service_healthy
+    entrypoint: >
+      /bin/sh -c "
+      mc alias set local http://minio:9000 meetup_minio meetup_minio_secret;
+      mc mb --ignore-existing local/meetup-media;
+      mc anonymous set public local/meetup-media;
+      exit 0;
+      "
 
   jaeger:
     image: jaegertracing/all-in-one:1.57

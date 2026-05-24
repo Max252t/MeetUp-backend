@@ -10,21 +10,35 @@ datasource db {
   extensions = [pgvector(map: "vector")]
 }
 
+enum Gender {
+  MALE
+  FEMALE
+  OTHER
+}
+
 model Profile {
-  id          String   @id
-  displayName String
-  bio         String?
+  id          String    @id
+  name        String    @default("")
+  bio         String    @default("")
   city        String?
   country     String?
-  gender      String?
+  gender      Gender?
   birthDate   DateTime?
   interests   String[]
-  photoUrls   String[]
+  photos      String[]
   embedding   Unsupported("vector(384)")?
-  isActive    Boolean  @default(true)
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
+  isActive    Boolean   @default(true)
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
 
   @@index([city])
   @@index([country])
+}
+
+model Interest {
+  id       String @id @default(uuid())
+  name     String
+  category String
+
+  @@unique([name])
 }

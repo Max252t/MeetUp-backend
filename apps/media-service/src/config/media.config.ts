@@ -12,6 +12,7 @@ const mediaEnvSchema = baseEnvSchema.extend({
   S3_SECRET_KEY: z.string().default('meetup_minio_secret'),
   PRESIGNED_URL_EXPIRES: z.coerce.number().default(900),
   MAX_FILE_SIZE_MB: z.coerce.number().default(10),
+  S3_PUBLIC_URL: z.string().default('http://localhost:9000/meetup-media'),
 });
 
 export type MediaEnv = z.infer<typeof mediaEnvSchema>;

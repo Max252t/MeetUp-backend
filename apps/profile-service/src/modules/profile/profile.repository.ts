@@ -1,5 +1,5 @@
 import { Injectable, OnModuleInit, OnModuleDestroy } from '@nestjs/common';
-import { PrismaClient } from '@prisma/client';
+import { PrismaClient, Gender } from '@prisma/client';
 
 @Injectable()
 export class ProfileRepository extends PrismaClient implements OnModuleInit, OnModuleDestroy {
@@ -11,19 +11,47 @@ export class ProfileRepository extends PrismaClient implements OnModuleInit, OnM
     await this.$disconnect();
   }
 
-  async upsert(id: string, data: {
-    displayName: string;
+  async createIfNotExists(id: string, name: string) {
+    return this.profile.upsert({
+      where: { id },
+      create: { id, name, interests: [], photos: [] },
+      update: {},
+    });
+  }
+
+  async patch(id: string, data: {
+    name?: string;
     bio?: string;
     city?: string;
     country?: string;
-    gender?: string;
+    gender?: Gender;
     birthDate?: Date;
     interests?: string[];
+    photos?: string[];
   }) {
     return this.profile.upsert({
       where: { id },
-      create: { id, ...data, interests: data.interests ?? [] },
-      update: { ...data },
+      create: {
+        id,
+        name: data.name ?? '',
+        bio: data.bio,
+        city: data.city,
+        country: data.country,
+        gender: data.gender,
+        birthDate: data.birthDate,
+        interests: data.interests ?? [],
+        photos: data.photos ?? [],
+      },
+      update: {
+        ...(data.name !== undefined && { name: data.name }),
+        ...(data.bio !== undefined && { bio: data.bio }),
+        ...(data.city !== undefined && { city: data.city }),
+        ...(data.country !== undefined && { country: data.country }),
+        ...(data.gender !== undefined && { gender: data.gender }),
+        ...(data.birthDate !== undefined && { birthDate: data.birthDate }),
+        ...(data.interests !== undefined && { interests: data.interests }),
+        ...(data.photos !== undefined && { photos: data.photos }),
+      },
     });
   }
 
@@ -33,15 +61,6 @@ export class ProfileRepository extends PrismaClient implements OnModuleInit, OnM
 
   async findManyByIds(ids: string[]) {
     return this.profile.findMany({ where: { id: { in: ids }, isActive: true } });
-  }
-
-  async addPhotoUrl(id: string, url: string) {
-    const profile = await this.profile.findUnique({ where: { id } });
-    if (!profile) return null;
-    return this.profile.update({
-      where: { id },
-      data: { photoUrls: [...profile.photoUrls, url] },
-    });
   }
 
   async deactivate(id: string) {

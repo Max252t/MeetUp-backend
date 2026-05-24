@@ -4,6 +4,7 @@ import { ConfigModule, ConfigService } from '@nestjs/config';
 import { ThrottlerModule, ThrottlerGuard } from '@nestjs/throttler';
 import { AuthModule } from './modules/auth/auth.module';
 import { HealthModule } from './modules/health/health.module';
+import { ProxyModule } from './proxy/proxy.module';
 import { JwtAuthGuard } from './modules/auth/jwt-auth.guard';
 import { GlobalExceptionFilter } from './common/filters/exception.filter';
 import { RequestIdInterceptor } from './common/interceptors/request-id.interceptor';
@@ -23,6 +24,7 @@ import { validateGatewayEnv, GatewayEnv } from './config/gateway.config';
     }),
     AuthModule,
     HealthModule,
+    ProxyModule,
   ],
   providers: [
     { provide: APP_FILTER, useClass: GlobalExceptionFilter },
