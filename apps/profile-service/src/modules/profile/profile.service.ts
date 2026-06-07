@@ -1,5 +1,5 @@
 import { Injectable, NotFoundException } from '@nestjs/common';
-import { Gender } from '@prisma/client';
+import { Gender } from '../../generated/prisma';
 import { ProfileRepository } from './profile.repository';
 import { ProfilePublisher } from './events/profile.publisher';
 import { UpdateProfileDto } from './dto/update-profile.dto';

@@ -1,5 +1,5 @@
 import { Injectable, OnModuleInit, OnModuleDestroy } from '@nestjs/common';
-import { PrismaClient, Gender } from '@prisma/client';
+import { PrismaClient, Gender } from '../../generated/prisma';
 
 @Injectable()
 export class ProfileRepository extends PrismaClient implements OnModuleInit, OnModuleDestroy {
@@ -65,5 +65,17 @@ export class ProfileRepository extends PrismaClient implements OnModuleInit, OnM
 
   async deactivate(id: string) {
     return this.profile.update({ where: { id }, data: { isActive: false } });
+  }
+
+  async upsertInterest(name: string, category: string) {
+    return this.interest.upsert({
+      where: { name },
+      create: { name, category },
+      update: {},
+    });
+  }
+
+  async findAllInterests() {
+    return this.interest.findMany({ orderBy: [{ category: 'asc' }, { name: 'asc' }] });
   }
 }

@@ -1,5 +1,5 @@
 import { Injectable, OnModuleInit } from '@nestjs/common';
-import { PrismaClient } from '@prisma/client';
+import { ProfileRepository } from '../profile/profile.repository';
 
 const SEED_INTERESTS = [
   { name: 'Football', category: 'Sports' },
@@ -40,23 +40,20 @@ const SEED_INTERESTS = [
 ];
 
 @Injectable()
-export class InterestsService extends PrismaClient implements OnModuleInit {
+export class InterestsService implements OnModuleInit {
+  constructor(private readonly repo: ProfileRepository) {}
+
   async onModuleInit() {
-    await this.$connect();
     await this.seed();
   }
 
   private async seed() {
     for (const item of SEED_INTERESTS) {
-      await this.interest.upsert({
-        where: { name: item.name },
-        create: item,
-        update: {},
-      });
+      await this.repo.upsertInterest(item.name, item.category);
     }
   }
 
   async findAll() {
-    return this.interest.findMany({ orderBy: [{ category: 'asc' }, { name: 'asc' }] });
+    return this.repo.findAllInterests();
   }
 }

@@ -6,8 +6,8 @@ import {
   Headers,
   HttpCode,
   HttpStatus,
-  Param,
   Post,
+  Query,
   Req,
 } from '@nestjs/common';
 import { ApiConsumes, ApiOperation, ApiTags, ApiBearerAuth } from '@nestjs/swagger';
@@ -86,11 +86,11 @@ export class UploadController {
     return { url, key };
   }
 
-  @Delete('photos/:key(*)')
+  @Delete('photos')
   @HttpCode(HttpStatus.NO_CONTENT)
-  @ApiOperation({ summary: 'Delete photo by key' })
+  @ApiOperation({ summary: 'Delete photo by key (pass key as query param)' })
   async deletePhoto(
-    @Param('key') key: string,
+    @Query('key') key: string,
     @Headers('x-user-id') userId: string,
   ) {
     if (!userId) throw new BadRequestException('x-user-id header required');

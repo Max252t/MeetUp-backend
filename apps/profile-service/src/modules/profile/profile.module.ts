@@ -8,5 +8,6 @@ import { ProfileListener } from './events/profile.listener';
 @Module({
   controllers: [ProfileController],
   providers: [ProfileService, ProfileRepository, ProfilePublisher, ProfileListener],
+  exports: [ProfileRepository],
 })
 export class ProfileModule {}
