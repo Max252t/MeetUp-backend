@@ -2,7 +2,7 @@ import { BadRequestException, Inject, Injectable, OnModuleInit, OnModuleDestroy 
 import { ConfigService } from '@nestjs/config';
 import { S3Client, PutObjectCommand, DeleteObjectCommand } from '@aws-sdk/client-s3';
 import { getSignedUrl } from '@aws-sdk/s3-request-presigner';
-import { PrismaClient } from '@prisma/client';
+import { PrismaClient } from '../../generated/prisma';
 import { JetStreamClient, StringCodec } from 'nats';
 import { JETSTREAM_CLIENT } from '../nats/nats.module';
 import { NATS_SUBJECTS } from '@meetup/shared-config';

@@ -1,5 +1,5 @@
 import { Injectable, OnModuleInit, OnModuleDestroy } from '@nestjs/common';
-import { PrismaClient, Prisma } from '@prisma/client';
+import { PrismaClient, Prisma } from '../../generated/prisma';
 import { ConfigService } from '@nestjs/config';
 import { AuthEnv } from '../../config/auth.config';
 import { encryptPiiFields, decryptPiiFields, getPiiIndex } from '@meetup/db-kit';

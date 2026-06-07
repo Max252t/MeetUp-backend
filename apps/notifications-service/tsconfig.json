@@ -3,9 +3,7 @@
   "compilerOptions": {
     "outDir": "./dist",
     "rootDir": "./src",
-    "paths": {
-      "@prisma/client": ["./node_modules/.prisma/client"]
-    }
+    "paths": {}
   },
   "include": ["src/**/*"],
   "exclude": ["node_modules", "dist"]
