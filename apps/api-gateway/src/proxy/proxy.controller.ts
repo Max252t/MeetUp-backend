@@ -1,10 +1,23 @@
 import { All, Controller, Req, Res } from '@nestjs/common';
+import { ApiExcludeController } from '@nestjs/swagger';
 import { FastifyRequest, FastifyReply } from 'fastify';
 import { ConfigService } from '@nestjs/config';
 import { GatewayEnv } from '../config/gateway.config';
 import { ProxyService } from './proxy.service';
 import { Public } from '../modules/auth/public.decorator';
 
+/**
+ * Transparent HTTP reverse-proxy.
+ *
+ * Routes:
+ *   /v1/auth/*       → AUTH_SERVICE_URL     (public)
+ *   /v1/interests*   → PROFILE_SERVICE_URL  (public)
+ *   /v1/profiles/*   → PROFILE_SERVICE_URL  (JWT, injects x-user-id)
+ *   /v1/media/*      → MEDIA_SERVICE_URL    (JWT, injects x-user-id)
+ *
+ * Excluded from Swagger — downstream services expose their own /docs.
+ */
+@ApiExcludeController()
 @Controller()
 export class ProxyController {
   private readonly authUrl: string;
