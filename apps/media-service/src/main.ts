@@ -1,4 +1,12 @@
 import 'reflect-metadata';
+import * as fs from 'fs';
+import * as path from 'path';
+(function fixPort() {
+  const envFile = path.join(__dirname, '..', '.env');
+  if (!fs.existsSync(envFile)) return;
+  const m = fs.readFileSync(envFile, 'utf8').match(/^PORT=(\d+)/m);
+  if (m) process.env.PORT = m[1];
+})();
 import { NestFactory } from '@nestjs/core';
 import { FastifyAdapter, NestFastifyApplication } from '@nestjs/platform-fastify';
 import { ValidationPipe } from '@nestjs/common';

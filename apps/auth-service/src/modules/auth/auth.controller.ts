@@ -15,7 +15,7 @@ export class AuthController {
   @Post('register')
   @ApiOperation({ summary: 'Register new user and send OTP' })
   register(@Body() dto: RegisterDto) {
-    return this.authService.register(dto.email, dto.password, dto.displayName, dto.phone);
+    return this.authService.register(dto.email, dto.password, dto.name, dto.phone);
   }
 
   @Post('verify-otp')
